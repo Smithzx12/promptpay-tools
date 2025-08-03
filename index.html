@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ตรวจสอบสลิปโอนเงิน G-Wallet / PromptPay</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="shortcut icon" href="./logo.png" type="image/x-icon">
+    <link rel="stylesheet" href="./index.css">
+</head>
+
+<body>
+    <nav id="mainNavbar" class="navbar navbar-expand-lg navbar-light">
+        <div class="container">
+            <a class="navbar-brand" href="#">G-Wallet / PromptPay Slip Checker</a>
+        </div>
+    </nav>
+
+    <div class="hero-section">
+        <div class="hero-content">
+            <h1>โอนเงินง่าย จ่ายสะดวก ด้วย PromptPay</h1>
+            <p>
+                สร้าง QR Code สำหรับรับเงินผ่าน PromptPay ได้ง่ายๆ <br>
+                รองรับเบอร์มือถือ, รหัสประจำตัวประชาชน, TAX ID หรือ e-Wallet <br>
+                <span style="display:block;margin-top:1rem;">
+                    สร้างได้ทั้งแบบระบุและไม่ระบุจำนวนเงิน
+                </span>
+                <span style="display:block;margin-top:1rem;">
+                    ใช้งานฟรี และ <b style="color:#facc15;">ไม่เก็บข้อมูลส่วนตัว</b>
+                </span>
+            </p>
+            <a href="#qrSection" class="btn btn-warning btn-lg">สร้าง QR Code รับเงิน</a>
+        </div>
+    </div>
+
+    <div class="container py-5" id="qrSection">
+        <div class="row g-4">
+            <div class="col-lg-6">
+                <div class="card p-4">
+                    <h4 class="mb-4 text-primary">สร้าง QR PromptPay / G-Wallet</h4>
+                    <div class="mb-3">
+                        <label for="amount" class="form-label fw-bold">จำนวนเงิน (บาท)</label>
+                        <input type="number" class="form-control" id="amount" placeholder="เช่น 100.00">
+                    </div>
+                    <div class="mb-3">
+                        <label for="qrName" class="form-label fw-bold">ชื่อผู้รับ</label>
+                        <input type="text" class="form-control" id="qrName" placeholder="เช่น นาย สมชาย มีบ้าน">
+                    </div>
+                    <div class="mb-3">
+                        <label for="gWalletId" class="form-label fw-bold">G-Wallet ID หรือ เบอร์ PromptPay</label>
+                        <input type="text" class="form-control" id="gWalletId"
+                            placeholder="เช่น 14000-096-253-7315 หรือ 081-234-5678">
+                    </div>
+                    <button class="btn btn-primary w-100" onclick="genQR()">สร้าง QR Code</button>
+                    <div class="text-center mt-4 qr-container" id="qrBlock" style="display:none;">
+                        <div style="display: flex; flex-direction: column; align-items: center;">
+                            <img src="./PromptPay-logo.jpg" alt="PromptPay Logo"
+                                style="width:100px; margin-bottom: 12px;">
+                            <img id="imgqr" src="" class="preview-img">
+                        </div>
+                        <div id="qrAmountShow" class="mt-2 fw-bold"></div>
+                        <div id="qrNameShow" class="fw-bold"></div>
+                        <button id="downloadQR" class="btn btn-outline-secondary btn-sm mt-3">ดาวน์โหลด QR</button>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="card p-4">
+                    <h4 class="mb-4 text-success">ตรวจสอบสลิปโอนเงิน</h4>
+                    <form id="slipForm" enctype="multipart/form-data">
+                        <div class="mb-3">
+                            <label for="slipGWalletId" class="form-label fw-bold">G-Wallet ID หรือ เบอร์
+                                PromptPay</label>
+                            <input type="text" class="form-control" id="slipGWalletId"
+                                placeholder="เช่น 14000-096-253-7315 หรือ 081-234-5678">
+                            <div id="slipGWalletIdError" class="error"></div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="slip" class="form-label fw-bold">เลือกสลิป (jpg, png, jpeg)</label>
+                            <input type="file" class="form-control" id="slip" name="slip" accept="image/*" required>
+                            <div id="slipError" class="error"></div>
+                        </div>
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" id="debugMode">
+                            <label class="form-check-label" for="debugMode">แสดงผล OCR (Debug)</label>
+                        </div>
+                        <button type="submit" class="btn btn-success w-100">ตรวจสอบสลิป</button>
+                    </form>
+                    <div class="text-center mt-4">
+                        <img id="slipPreview" class="preview-img" style="display:none;">
+                    </div>
+                    <div id="slipResult" class="mt-3"></div>
+                    <div id="debugBox" class="debug-box" style="display:none;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        © 2025 G-Wallet Slip Checker | พัฒนาเพื่อการทดสอบ
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.7.1.js"></script>
+    <script>
+        // ฟังก์ชันสำหรับจัดรูปแบบเบอร์โทรศัพท์
+        function formatPhoneNumber(value) {
+            const cleaned = value.replace(/\D/g, '');
+            if (cleaned.length === 10 && /^0\d{9}$/.test(cleaned)) {
+                return cleaned.replace(/(\d{3})(\d{3})(\d{4})/, '$1-$2-$3');
+            }
+            return value;
+        }
+
+        // ฟังก์ชันสำหรับจัดรูปแบบ G-Wallet ID
+        function formatGWalletId(value) {
+            const cleaned = value.replace(/\D/g, '');
+            if (cleaned.length === 15 && /^14000\d{10}$/.test(cleaned)) {
+                return cleaned.replace(/(\d{5})(\d{3})(\d{3})(\d{4})/, '$1-$2-$3-$4');
+            }
+            return value;
+        }
+
+        // ฟังก์ชันสำหรับลบเครื่องหมายขีดและคืนค่าเป็นตัวเลขเท่านั้น
+        function cleanId(value) {
+            return value.replace(/\D/g, '');
+        }
+
+        // จัดการการพิมพ์ในช่อง gWalletId
+        $("#gWalletId").on("input", function() {
+            const value = $(this).val();
+            const formatted = formatPhoneNumber(value) !== value ? formatPhoneNumber(value) : formatGWalletId(value);
+            $(this).val(formatted);
+        });
+
+        // จัดการการพิมพ์ในช่อง slipGWalletId
+        $("#slipGWalletId").on("input", function() {
+            const value = $(this).val();
+            const formatted = formatPhoneNumber(value) !== value ? formatPhoneNumber(value) : formatGWalletId(value);
+            $(this).val(formatted);
+        });
+
+        function genQR() {
+            const gWalletId = cleanId($("#gWalletId").val().trim());
+            const amount = $("#amount").val().trim();
+            const name = $("#qrName").val().trim();
+
+            // ตรวจสอบว่าทุกช่องไม่ว่าง
+            if (!gWalletId || !amount || !name) {
+                Swal.fire('กรอกข้อมูลไม่ครบ', 'กรุณากรอกข้อมูลให้ครบทุกช่อง', 'warning');
+                return;
+            }
+
+            // ตรวจสอบรูปแบบ gWalletId หรือเบอร์ PromptPay
+            const isGWallet = /^14000\d{10}$/.test(gWalletId);
+            const isPhone = /^0\d{9}$/.test(gWalletId);
+            if (!isGWallet && !isPhone) {
+                Swal.fire('รูปแบบไม่ถูกต้อง', 'กรุณากรอก G-Wallet ID (15 หลักขึ้นต้น 14000) หรือเบอร์ PromptPay (10 หลัก)', 'error');
+                return;
+            }
+
+            Swal.fire({
+                title: 'กำลังสร้าง QR...',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+            $.ajax({
+                method: 'post',
+                url: 'http://localhost:3000/generateQR',
+                data: {
+                    gWalletId: gWalletId,
+                    amount: parseFloat(amount),
+                    name: name
+                },
+                success: function (response) {
+                    Swal.close();
+                    $("#imgqr").attr('src', response.Result).show();
+                    $("#qrAmountShow").text(`${parseFloat(amount).toFixed(2)} บาท`);
+                    $("#qrNameShow").text(name);
+                    $("#qrBlock").css('display', 'block');
+
+                    $("#imgqr").off("click").on("click", function () {
+                        Swal.fire({
+                            title: 'QR Code',
+                            html: `
+                                <div style="display: flex; flex-direction: column; align-items: center;">
+                                    <img src="./PromptPay-logo.jpg" alt="PromptPay Logo" style="width:100px;margin-bottom:12px;">
+                                    <img src="${response.Result}" style="max-width:90vw;max-height:60vh;">
+                                    <div class="mt-2">${amount ? `${parseFloat(amount).toFixed(2)} บาท` : ''}</div>
+                                    <div class="fw-bold">${name || ''}</div>
+                                </div>
+                            `,
+                            showCloseButton: true,
+                            showConfirmButton: false,
+                            width: 400
+                        });
+                    });
+
+                    $("#downloadQR").off("click").on("click", async function (e) {
+                        e.stopPropagation();
+
+                        // Prepare data
+                        const qrImg = document.getElementById('imgqr');
+                        const logoImg = new Image();
+                        logoImg.src = './PromptPay-logo.jpg';
+                        const amountText = $("#qrAmountShow").text();
+                        const nameText = $("#qrNameShow").text();
+
+                        // Wait for logo to load
+                        await new Promise(resolve => {
+                            if (logoImg.complete) resolve();
+                            else logoImg.onload = resolve;
+                        });
+
+                        // Define dimensions
+                        const logoDrawWidth = 120;
+                        const logoDrawHeight = 40;
+                        const width = 400;
+                        const qrSize = 240;
+                        const logoHeight = logoDrawHeight;
+                        const padding = 24;
+                        const extraBottom = 40;
+                        const height = logoHeight + qrSize + 80 + extraBottom;
+
+                        // Create canvas
+                        const canvas = document.createElement('canvas');
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+
+                        // White background
+                        ctx.fillStyle = "#fff";
+                        ctx.fillRect(0, 0, width, height);
+
+                        // Draw logo
+                        ctx.drawImage(
+                            logoImg,
+                            (width - logoDrawWidth) / 2,
+                            padding,
+                            logoDrawWidth,
+                            logoDrawHeight
+                        );
+
+                        // Draw QR
+                        ctx.drawImage(qrImg, (width - qrSize) / 2, padding + logoHeight + 8, qrSize, qrSize);
+
+                        // Draw amount
+                        ctx.font = "bold 22px Sarabun, Arial";
+                        ctx.fillStyle = "#222";
+                        ctx.textAlign = "center";
+                        ctx.fillText(amountText, width / 2, padding + logoHeight + qrSize + 36);
+
+                        // Draw name
+                        ctx.font = "18px Sarabun, Arial";
+                        ctx.fillStyle = "#444";
+                        ctx.textAlign = "center";
+                        ctx.fillText(nameText, width / 2, padding + logoHeight + qrSize + 64);
+
+                        // Download
+                        const link = document.createElement('a');
+                        link.href = canvas.toDataURL('image/png');
+                        link.download = 'promptpay-qr.png';
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                    });
+
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'สร้าง QR สำเร็จ!',
+                        html: `
+                            <div style="display: flex; flex-direction: column; align-items: center;">
+                                <img src="./PromptPay-logo.jpg" alt="PromptPay Logo" style="width:100px;margin-bottom:12px;">
+                                <img src="${response.Result}" class="preview-img">
+                                <div class="mt-2">${amount ? `${parseFloat(amount).toFixed(2)} บาท` : ''}</div>
+                                <div class="fw-bold">${name || ''}</div>
+                            </div>
+                        `,
+                        confirmButtonText: 'ตกลง'
+                    });
+                },
+                error: function (err) {
+                    Swal.close();
+                    Swal.fire('ผิดพลาด', 'เกิดข้อผิดพลาดในการสร้าง QR', 'error');
+                }
+            });
+        }
+
+        $("#slip").on("change", function () {
+            if (this.files && this.files[0]) {
+                var reader = new FileReader();
+                reader.onload = function (e) {
+                    $("#slipPreview").attr('src', e.target.result).show();
+                }
+                reader.readAsDataURL(this.files[0]);
+            }
+        });
+
+        $("#slipForm").on("submit", function (e) {
+            e.preventDefault();
+            const slip = $("#slip")[0].files[0];
+            const slipGWalletId = cleanId($("#slipGWalletId").val().trim());
+            const debug = $("#debugMode").is(":checked");
+
+            // Validate
+            if (!slip) {
+                Swal.fire('ผิดพลาด', 'กรุณาเลือกไฟล์สลิป', 'error');
+                return;
+            }
+            if (!slipGWalletId) {
+                Swal.fire('ผิดพลาด', 'กรุณากรอก G-Wallet ID หรือ เบอร์ PromptPay', 'error');
+                return;
+            }
+            const isGWallet = /^14000\d{10}$/.test(slipGWalletId);
+            const isPhone = /^0\d{9}$/.test(slipGWalletId);
+            if (!isGWallet && !isPhone) {
+                Swal.fire('รูปแบบไม่ถูกต้อง', 'กรุณากรอก G-Wallet ID (15 หลักขึ้นต้น 14000) หรือเบอร์ PromptPay (10 หลัก)', 'error');
+                return;
+            }
+
+            var formData = new FormData(this);
+            formData.append("gWalletId", slipGWalletId);
+            if (debug) {
+                formData.append("debug", "true");
+            }
+
+            Swal.fire({
+                title: 'กำลังอัปโหลด...',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
+            $.ajax({
+                url: "http://localhost:3000/upload-slip",
+                type: "POST",
+                data: formData,
+                processData: false,
+                contentType: false,
+                success: function (res) {
+                    Swal.close();
+                    Swal.fire({
+                        icon: res.status === 'success' ? 'success' : 'error',
+                        title: res.status === 'success' ? 'สำเร็จ' : 'ผิดพลาด',
+                        html: res.message +
+                            (res.debug && res.debug.ocr
+                                ? `<hr><div style="text-align:left"><b>OCR Debug:</b><pre style="white-space:pre-wrap">${res.debug.ocr}</pre></div>`
+                                : ''),
+                        confirmButtonText: 'ตกลง'
+                    });
+                    if (res.status === 'success') {
+                        $("#slipResult").html('');
+                    }
+                    if (res.debug && res.debug.ocr) {
+                        $("#debugBox").html(
+                            `<b>OCR Debug:</b><br><pre>${res.debug.ocr}</pre>`
+                        ).show();
+                    } else {
+                        $("#debugBox").hide();
+                    }
+                },
+                error: function (xhr) {
+                    Swal.close();
+                    Swal.fire('ผิดพลาด', 'เกิดข้อผิดพลาดในการอัปโหลด', 'error');
+                    $("#debugBox").hide();
+                }
+            });
+        });
+
+        document.addEventListener('DOMContentLoaded', function () {
+            const navbar = document.getElementById('mainNavbar');
+            const heroTitle = document.querySelector('.hero-content h1');
+            function onScroll() {
+                const titleBottom = heroTitle.getBoundingClientRect().bottom;
+                if (titleBottom <= 0) {
+                    navbar.classList.add('scrolled');
+                } else {
+                    navbar.classList.remove('scrolled');
+                }
+            }
+            window.addEventListener('scroll', onScroll);
+            onScroll();
+        });
+    </script>
+</body>
+
+</html>
